@@ -2,26 +2,59 @@ import http from "http";
 import url from "url";
 import { createClient } from "@supabase/supabase-js";
 
-const dbURL = process.env.DB_URL;
+const dbUrl = process.env.DB_URL;
 const dbKey = process.env.DB_KEY;
 const PORT = process.env.PORT;
 
-const supabase = createClient(dbURL, dbKey);
+const supabase = createClient(dbUrl, dbKey);
 
 const fetchNotes = async () => {
   const { data, error } = await supabase.from("notes").select("*");
+  if (error) {
+    throw new Error("Could not find notes");
+  }
+  return data;
+};
+
+const createNote = async (body) => {
+  const { title, content } = JSON.parse(body);
+  const { data, error } = await supabase
+    .from("notes")
+    .insert([{ title, content }]);
 
   if (error) {
-    console.log("Supabase error:", error);
-    return null;
+    throw new Error(error.message);
   }
-
   return data;
+};
+
+const updateNote = async (body, id) => {
+  const { title, content } = JSON.parse(body);
+  const updateData = {};
+
+  if (title !== undefined) updateData.title = title;
+  if (content !== undefined) updateData.content = content;
+
+  const { data, error } = await supabase
+    .from("notes")
+    .update(updateData)
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data;
+};
+
+const deleteNote = async (id) => {
+  const { error } = await supabase.from("notes").delete().eq("id", id);
+  if (error) {
+    throw new Error(error.message);
+  }
 };
 
 const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
-
   let body = "";
 
   req.on("data", (chunk) => {
@@ -31,16 +64,7 @@ const server = http.createServer(async (req, res) => {
   req.on("end", async () => {
     try {
       if (req.method === "GET" && parsedUrl.pathname === "/api/notes") {
-        console.log("Received GET request for /api/notes");
         const data = await fetchNotes();
-
-        if (!data) {
-          res.statusCode = 500;
-          res.end(JSON.stringify({ error: "Failed to fetch notes" }));
-          return;
-        }
-
-        console.log("Received notes data:", data);
         res.statusCode = 200;
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify(data));
@@ -48,22 +72,8 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (req.method === "POST" && parsedUrl.pathname === "/api/addNote") {
-        const { title, content } = JSON.parse(body);
-        console.log("Inserting note into database...");
-
-        const { error } = await supabase
-          .from("notes")
-          .insert([{ title, content }]);
-
-        if (error) {
-          console.log("Supabase error:", error);
-          res.statusCode = 500;
-          res.end(JSON.stringify({ error: error.message }));
-          return;
-        }
-
-        console.log("Note added successfully");
-        const updatedNotes = await fetchNotes(); // Fetch updated notes
+        await createNote(body);
+        const updatedNotes = await fetchNotes();
         res.statusCode = 200;
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify(updatedNotes));
@@ -75,23 +85,8 @@ const server = http.createServer(async (req, res) => {
         parsedUrl.pathname.startsWith("/api/updateNote/")
       ) {
         const id = parsedUrl.pathname.split("/")[3];
-        const { content } = JSON.parse(body);
-        console.log("Updating note in database...");
-
-        const { error } = await supabase
-          .from("notes")
-          .update({ content })
-          .eq("id", id);
-
-        if (error) {
-          console.log("Supabase error:", error);
-          res.statusCode = 500;
-          res.end(JSON.stringify({ error: error.message }));
-          return;
-        }
-
-        console.log("Note updated successfully");
-        const updatedNotes = await fetchNotes(); // Fetch updated notes
+        await updateNote(body, id);
+        const updatedNotes = await fetchNotes();
         res.statusCode = 200;
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify(updatedNotes));
@@ -102,33 +97,19 @@ const server = http.createServer(async (req, res) => {
         req.method === "DELETE" &&
         parsedUrl.pathname.startsWith("/api/deleteNote/")
       ) {
-        const deleteId = parsedUrl.pathname.split("/")[3];
-
-        console.log("Deleting the note...");
-        const { error } = await supabase
-          .from("notes")
-          .delete()
-          .eq("id", deleteId);
-
-        if (error) {
-          console.log("Supabase error:", error);
-          res.statusCode = 500;
-          res.end(JSON.stringify({ error: error.message }));
-          return;
-        }
-
-        console.log("Note successfully deleted");
+        const deletedId = parsedUrl.pathname.split("/")[3];
+        await deleteNote(deletedId);
+        const updatedNotes = await fetchNotes();
         res.statusCode = 200;
-        await fetchNotes();
-        res.end(`Successfully deleted the note with the id: ${deleteId}`);
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(updatedNotes));
         return;
       }
 
-      // Handle unsupported routes
-      res.statusCode = 404;
-      res.end(JSON.stringify({ error: "Route not found" }));
+      res.statusCode = 400;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ message: "This route is invalid" }));
     } catch (error) {
-      console.error("Server error:", error);
       res.statusCode = 500;
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ error: error.message }));
