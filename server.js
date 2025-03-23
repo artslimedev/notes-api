@@ -71,7 +71,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (
-        req.method === "PATCH" &&
+        req.method === "PUT" &&
         parsedUrl.pathname.startsWith("/api/updateNote/")
       ) {
         const id = parsedUrl.pathname.split("/")[3];
