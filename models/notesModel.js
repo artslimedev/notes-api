@@ -12,6 +12,7 @@
 
 // const insertNote = async (title, content) => {
 //   const { error } = await supabase.from("notes").insert([{ title, content }]);
+//   fetchNotes();
 //   if (error) throw error;
 // };
 
@@ -20,11 +21,13 @@
 //     .from("notes")
 //     .update({ content })
 //     .eq("id", id);
+//   fetchNotes();
 //   if (error) throw error;
 // };
 
 // const deleteNote = async (id) => {
 //   const { error } = await supabase.from("notes").delete().eq("id", id);
+//   fetchNotes();
 //   if (error) throw error;
 // };
 
