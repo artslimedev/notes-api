@@ -1,0 +1,22 @@
+{
+  "name": "notes-api",
+  "version": "1.0.0",
+  "description": "This is a playground to practice nodejs",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "nodemon --env-file=.env server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "notes-api"
+  },
+  "author": "Slime Dev",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
